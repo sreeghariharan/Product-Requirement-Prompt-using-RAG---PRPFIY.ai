@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Paperclip, Sparkles, Search, BookOpen, X, FileText } from "lucide-react";
+import { Send, Paperclip, Sparkles, X, FileText, Thermometer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -10,6 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 const FRAMEWORKS = [
@@ -25,20 +31,28 @@ const FRAMEWORKS = [
 ];
 
 interface ChatInputProps {
-  onSend: (message: string, files: File[], framework: string, mode: "rag" | "llm") => void;
+  onSend: (message: string, files: File[], framework: string) => void;
+  onFileUpload: (files: File[]) => void;
+  temperature: number;
+  onTemperatureChange: (temp: number) => void;
   isLoading?: boolean;
 }
 
-export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
+export const ChatInput = ({ 
+  onSend, 
+  onFileUpload, 
+  temperature, 
+  onTemperatureChange, 
+  isLoading 
+}: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [framework, setFramework] = useState("RTCFR");
-  const [mode, setMode] = useState<"rag" | "llm">("rag");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
     if (message.trim() || files.length > 0) {
-      onSend(message, files, framework, mode);
+      onSend(message, files, framework);
       setMessage("");
       setFiles([]);
     }
@@ -47,6 +61,7 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     setFiles((prev) => [...prev, ...selectedFiles]);
+    onFileUpload(selectedFiles);
   };
 
   const removeFile = (index: number) => {
@@ -64,37 +79,6 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
     <div className="border-t border-border bg-background/50 backdrop-blur-lg p-4">
       {/* Toolbar */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="flex items-center gap-2 bg-secondary rounded-lg p-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setMode("rag")}
-            className={cn(
-              "px-3 text-sm transition-all",
-              mode === "rag"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <BookOpen className="w-4 h-4 mr-1.5" />
-            RAG Mode
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setMode("llm")}
-            className={cn(
-              "px-3 text-sm transition-all",
-              mode === "llm"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Sparkles className="w-4 h-4 mr-1.5" />
-            Pure LLM
-          </Button>
-        </div>
-
         <Select value={framework} onValueChange={setFramework}>
           <SelectTrigger className="w-40 bg-secondary border-0 text-foreground">
             <SelectValue placeholder="Framework" />
@@ -114,26 +98,51 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
           </SelectContent>
         </Select>
 
+        {/* Temperature Control */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-border text-muted-foreground hover:text-foreground"
+            >
+              <Thermometer className="w-4 h-4 mr-1.5" />
+              {temperature.toFixed(1)}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 bg-card border-border">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-foreground">Temperature</span>
+                <span className="text-sm text-muted-foreground">{temperature.toFixed(1)}</span>
+              </div>
+              <Slider
+                value={[temperature]}
+                onValueChange={(val) => onTemperatureChange(val[0])}
+                min={0.1}
+                max={1}
+                step={0.1}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Lower = more focused, Higher = more creative
+              </p>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <div className="flex-1" />
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-primary/30 text-primary hover:bg-primary/10"
-          >
-            <Sparkles className="w-4 h-4 mr-1.5" />
-            Generate PRP
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-border text-muted-foreground hover:text-foreground"
-          >
-            <Search className="w-4 h-4 mr-1.5" />
-            Search
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSubmit}
+          disabled={isLoading || (!message.trim() && files.length === 0)}
+          className="border-primary/30 text-primary hover:bg-primary/10"
+        >
+          <Sparkles className="w-4 h-4 mr-1.5" />
+          Generate PRP
+        </Button>
       </div>
 
       {/* File attachments */}
@@ -192,7 +201,7 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything about your documents or generate a PRP..."
+            placeholder="Describe your product or ask about requirements..."
             rows={1}
             className={cn(
               "min-h-[52px] max-h-[200px] resize-none",
@@ -220,7 +229,7 @@ export const ChatInput = ({ onSend, isLoading }: ChatInputProps) => {
       </div>
 
       <p className="text-xs text-muted-foreground text-center mt-3">
-        AIR Method: Align → Improve → Refine for optimized outputs
+        Powered by Ollama Llama3 • Running locally on your machine
       </p>
     </div>
   );

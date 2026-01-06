@@ -1,12 +1,22 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, FileText, Zap, Shield } from "lucide-react";
+import { FileText, Zap, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import prpfiyLogo from "@/assets/prpfiy-logo.png";
+
+const TAGLINES = [
+  "Transform your ideas into structured product requirements",
+  "Generate professional PRPs with AI-powered precision",
+  "From concept to documentation in seconds",
+  "Intelligent Product Requirements, Simplified",
+  "Your AI partner for product documentation",
+];
 
 const SUGGESTIONS = [
-  "Generate a PRP for a drone delivery app using RTCFR",
-  "Create a PRD for a YOLO-based object detection system",
-  "Write product requirements for a RAG-powered chatbot",
-  "Draft a mobile app PRD using COSTAR framework",
+  "Generate a PRP for a mobile e-commerce app",
+  "Create requirements for a task management system",
+  "Write a PRD for a customer feedback portal",
+  "Draft requirements for an inventory management app",
 ];
 
 interface WelcomeScreenProps {
@@ -14,6 +24,15 @@ interface WelcomeScreenProps {
 }
 
 export const WelcomeScreen = ({ onSuggestionClick }: WelcomeScreenProps) => {
+  const [currentTagline, setCurrentTagline] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTagline((prev) => (prev + 1) % TAGLINES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -27,9 +46,7 @@ export const WelcomeScreen = ({ onSuggestionClick }: WelcomeScreenProps) => {
         transition={{ delay: 0.1 }}
         className="relative mb-8"
       >
-        <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center glow-primary">
-          <Sparkles className="w-10 h-10 text-primary-foreground" />
-        </div>
+        <img src={prpfiyLogo} alt="PRPFIY" className="w-24 h-24 rounded-2xl glow-primary" />
         <div className="absolute -inset-4 bg-primary/20 rounded-3xl blur-2xl -z-10" />
       </motion.div>
 
@@ -40,17 +57,22 @@ export const WelcomeScreen = ({ onSuggestionClick }: WelcomeScreenProps) => {
         transition={{ delay: 0.2 }}
         className="text-4xl font-bold text-center mb-3"
       >
-        <span className="gradient-text">RAG-PRP Pro</span>
+        <span className="gradient-text">PRPFIY</span>
       </motion.h1>
 
-      <motion.p
-        initial={{ y: 20, opacity: 0 }}
+      {/* Alternating Tagline */}
+      <motion.div
+        key={currentTagline}
+        initial={{ y: 10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="text-muted-foreground text-center max-w-md mb-12"
+        exit={{ y: -10, opacity: 0 }}
+        transition={{ duration: 0.5 }}
+        className="h-8 flex items-center mb-12"
       >
-        Generate enterprise-grade Product Requirement Prompts and Documents using AIR LLM optimization
-      </motion.p>
+        <p className="text-muted-foreground text-center max-w-md">
+          {TAGLINES[currentTagline]}
+        </p>
+      </motion.div>
 
       {/* Features */}
       <motion.div
@@ -60,9 +82,9 @@ export const WelcomeScreen = ({ onSuggestionClick }: WelcomeScreenProps) => {
         className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12 max-w-2xl"
       >
         {[
-          { icon: FileText, title: "RAG-Enhanced", desc: "Upload docs for context-aware generation" },
-          { icon: Zap, title: "AIR Optimized", desc: "Align-Improve-Refine for quality outputs" },
-          { icon: Shield, title: "Local-First", desc: "Privacy-focused, runs on your hardware" },
+          { icon: FileText, title: "Smart Documents", desc: "Upload docs for context-aware generation" },
+          { icon: Zap, title: "9 Frameworks", desc: "RTCFR, COSTAR, CRISPE and more" },
+          { icon: Target, title: "Precise Output", desc: "Professional-grade requirements" },
         ].map((feature, i) => (
           <div
             key={i}
@@ -93,7 +115,7 @@ export const WelcomeScreen = ({ onSuggestionClick }: WelcomeScreenProps) => {
               onClick={() => onSuggestionClick(suggestion)}
               className="justify-start text-left h-auto py-3 px-4 border-border hover:border-primary/50 hover:bg-primary/5 text-foreground"
             >
-              <Sparkles className="w-4 h-4 text-primary mr-3 flex-shrink-0" />
+              <FileText className="w-4 h-4 text-primary mr-3 flex-shrink-0" />
               <span className="text-sm">{suggestion}</span>
             </Button>
           ))}

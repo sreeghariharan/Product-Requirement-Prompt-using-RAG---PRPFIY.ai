@@ -1,8 +1,20 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, FolderOpen, Settings, ChevronLeft, Sparkles } from "lucide-react";
+import { Plus, FolderOpen, Settings, ChevronLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import prpfiyLogo from "@/assets/prpfiy-logo.png";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Space {
   id: string;
@@ -15,6 +27,8 @@ interface SidebarProps {
   activeSpaceId: string;
   onSelectSpace: (id: string) => void;
   onCreateSpace: () => void;
+  onDeleteSpace: (id: string) => void;
+  onOpenSettings: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -24,9 +38,13 @@ export const Sidebar = ({
   activeSpaceId,
   onSelectSpace,
   onCreateSpace,
+  onDeleteSpace,
+  onOpenSettings,
   isCollapsed,
   onToggleCollapse,
 }: SidebarProps) => {
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   return (
     <motion.aside
       initial={false}
@@ -44,10 +62,8 @@ export const Sidebar = ({
               exit={{ opacity: 0 }}
               className="flex items-center gap-2"
             >
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center glow-primary-subtle">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold text-foreground">RAG-PRP Pro</span>
+              <img src={prpfiyLogo} alt="PRPFIY" className="w-8 h-8 rounded-lg" />
+              <span className="font-semibold text-foreground">PRPFIY</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -93,39 +109,82 @@ export const Sidebar = ({
         </AnimatePresence>
         
         <div className="space-y-1">
+          {spaces.length === 0 && !isCollapsed && (
+            <p className="text-sm text-muted-foreground px-2 py-4 text-center">
+              No spaces yet. Create one to get started.
+            </p>
+          )}
           {spaces.map((space, index) => (
-            <motion.button
+            <motion.div
               key={space.id}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
-              onClick={() => onSelectSpace(space.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
-                "hover:bg-sidebar-accent group",
-                activeSpaceId === space.id && "bg-sidebar-accent border border-primary/30"
+                "flex items-center gap-2 group",
+                isCollapsed && "justify-center"
               )}
             >
-              <FolderOpen
+              <button
+                onClick={() => onSelectSpace(space.id)}
                 className={cn(
-                  "w-4 h-4 flex-shrink-0",
-                  activeSpaceId === space.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                  "flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                  "hover:bg-sidebar-accent",
+                  activeSpaceId === space.id && "bg-sidebar-accent border border-primary/30"
                 )}
-              />
+              >
+                <FolderOpen
+                  className={cn(
+                    "w-4 h-4 flex-shrink-0",
+                    activeSpaceId === space.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                  )}
+                />
+                {!isCollapsed && (
+                  <div className="flex-1 text-left min-w-0">
+                    <p className={cn(
+                      "text-sm truncate",
+                      activeSpaceId === space.id ? "text-foreground font-medium" : "text-sidebar-foreground"
+                    )}>
+                      {space.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {space.messageCount} messages
+                    </p>
+                  </div>
+                )}
+              </button>
+              
               {!isCollapsed && (
-                <div className="flex-1 text-left min-w-0">
-                  <p className={cn(
-                    "text-sm truncate",
-                    activeSpaceId === space.id ? "text-foreground font-medium" : "text-sidebar-foreground"
-                  )}>
-                    {space.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {space.messageCount} messages
-                  </p>
-                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-card border-border">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-foreground">Delete Space?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete "{space.name}"? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="border-border">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDeleteSpace(space.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
-            </motion.button>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -134,6 +193,7 @@ export const Sidebar = ({
       <div className="p-3 border-t border-sidebar-border">
         <Button
           variant="ghost"
+          onClick={onOpenSettings}
           className={cn(
             "w-full justify-start text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
             isCollapsed && "justify-center px-0"

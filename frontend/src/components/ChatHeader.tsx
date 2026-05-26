@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, Trash2, Share2, MoreHorizontal } from "lucide-react";
+import { FolderOpen, Trash2, Share2, MoreHorizontal, Link as LinkIcon, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,11 +24,20 @@ import {
 interface ChatHeaderProps {
   spaceName: string;
   documentCount: number;
+  spaces: { id: string; name: string }[];
+  activeSpaceId: string;
   onClearKB: () => void;
   onShare: () => void;
+  onForkChat: (targetSpaceId: string) => void;
 }
 
-export const ChatHeader = ({ spaceName, documentCount, onClearKB, onShare }: ChatHeaderProps) => {
+export const ChatHeader = ({ spaceName, documentCount, spaces, activeSpaceId, onClearKB, onShare, onForkChat }: ChatHeaderProps) => {
+  const [connectOpen, setConnectOpen] = useState(false);
+
+  const handleConnect = (targetId: string) => {
+    onForkChat(targetId);
+    setConnectOpen(false);
+  };
   return (
     <motion.header
       initial={{ opacity: 0, y: -10 }}
@@ -47,6 +57,65 @@ export const ChatHeader = ({ spaceName, documentCount, onClearKB, onShare }: Cha
       </div>
 
       <div className="flex items-center gap-2">
+        <AlertDialog open={connectOpen} onOpenChange={setConnectOpen}>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LinkIcon className="w-4 h-4 mr-1.5" />
+              Connect Chat
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="bg-card border-border max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-foreground flex items-center gap-2">
+                <LinkIcon className="w-5 h-5 text-primary" />
+                Connect Context
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Share this chat's document context with another chat session.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="py-4 space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
+              <Button
+                variant="outline"
+                className="w-full justify-start border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary"
+                onClick={() => handleConnect("new")}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create New Chat
+              </Button>
+
+              {spaces.filter(s => s.id !== activeSpaceId).map(space => (
+                <Button
+                  key={space.id}
+                  variant="ghost"
+                  className="w-full justify-start text-foreground hover:bg-secondary border border-transparent hover:border-border"
+                  onClick={() => handleConnect(space.id)}
+                >
+                  <FolderOpen className="w-4 h-4 mr-2 text-muted-foreground" />
+                  {space.name}
+                </Button>
+              ))}
+
+              {spaces.length <= 1 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No other active chats to connect to.
+                </p>
+              )}
+            </div>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-secondary border-0 text-foreground hover:bg-secondary/80">
+                Cancel
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <Button
           variant="ghost"
           size="sm"

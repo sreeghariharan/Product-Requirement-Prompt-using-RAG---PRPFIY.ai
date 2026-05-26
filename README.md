@@ -1,73 +1,137 @@
-# Welcome to your Lovable project
+<div align="center">
+  <h1>🚀 PRPFIY.ai</h1>
+  <p><strong>Agentic AI SaaS for Automated Product Requirement Prompts (PRPs)</strong></p>
+  
+  <p>
+    <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
+    <a href="https://reactjs.org/"><img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React"></a>
+    <a href="https://www.trychroma.com/"><img src="https://img.shields.io/badge/ChromaDB-FF4F00?style=for-the-badge&logo=chroma" alt="ChromaDB"></a>
+    <a href="https://groq.com/"><img src="https://img.shields.io/badge/Groq-f55036?style=for-the-badge&logo=groq&logoColor=white" alt="Groq"></a>
+    <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"></a>
+  </p>
+</div>
 
-## Project info
+---
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 📖 Overview
 
-## How can I edit this code?
+**PRPFIY.ai** is an advanced Agentic AI platform designed for Product Managers, Developers, and System Architects. It leverages cutting-edge LLMs (via Groq API) and Retrieval-Augmented Generation (RAG) to instantly transform raw ideas and uploaded context into highly structured **Product Requirement Prompts (PRPs)**.
 
-There are several ways of editing your application.
+Instead of writing vague prompts, PRPFIY uses established industry frameworks (RTCFR, CRISPE, COSTAR, etc.) to ensure your prompts capture the full scope of your product requirements.
 
-**Use Lovable**
+## 🔄 System Architecture & Data Flow
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+![PRPFIY.ai Data Flow Diagram](assets/data_flow_diagram.png)
 
-Changes made via Lovable will be committed automatically to this repo.
+> **Flow Summary:** The user interacts with the React frontend, which communicates with the FastAPI backend via HTTP. Uploaded documents are embedded using HuggingFace and stored persistently in ChromaDB. On each chat/PRP request, the backend retrieves relevant context (RAG), combines it with chat history, and sends a structured prompt to Groq's LLaMA 3 for generation. The response is returned and displayed to the user.
 
-**Use your preferred IDE**
+## ✨ Key Features
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **🧠 Dual-Mode Chat Interface**
+  - **Conversational AI:** Chat naturally to brainstorm ideas and clarify concepts.
+  - **PRP Generation Mode:** Effortlessly generate structured PRPs using one of 9 embedded frameworks.
+- **📄 RAG & Document Context**
+  - Upload PDF, DOCX, TXT, or Markdown documents.
+  - The embedded ChromaDB vector database persistently stores and retrieves context to make your PRPs hyper-aware of your business logic.
+- **🏗️ 9+ Built-in Prompting Frameworks**
+  - Includes **RTCFR, RTF, CRISPE, COSTAR, TASK-SPEC, A-I-C, SPAR, CoT (Chain of Thought)**, and **ReAct**.
+- **⚡ Blazing Fast Generation**
+  - Powered by **Groq**'s ultra-low latency LPU engine running LLaMA 3.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## 🛠️ Technology Stack
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Backend
+- **Framework:** FastAPI
+- **AI/LLM Routing:** LangChain & Groq (`llama-3.3-70b-versatile`)
+- **Vector Database:** ChromaDB (Persistent Storage)
+- **Embeddings:** HuggingFace `all-MiniLM-L6-v2`
+- **Document Processors:** `pypdf`, `python-docx`
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Frontend
+- **Framework:** React + Vite
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS + shadcn-ui
 
-# Step 3: Install the necessary dependencies.
-npm i
+---
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## 🚀 Quick Start Guide
+
+### Prerequisites
+1. **Node.js** (v18+) - [Download](https://nodejs.org/)
+2. **Python** (3.10+) - [Download](https://python.org/)
+3. **Groq API Key** - [Get free key](https://console.groq.com/)
+
+### 1. Start the Backend
+
+Open Terminal 1:
+
+```bash
+# Navigate to the backend directory
+cd backend
+
+# Create and activate a virtual environment
+python -m venv .venv
+.\.venv\Scripts\activate      # Windows
+# source .venv/bin/activate   # Mac/Linux
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure Environment Variables
+# Create a .env file inside /backend and add:
+# GROQ_API_KEY=gsk_your_api_key_here
+
+# Start the FastAPI server
+python main.py
+```
+> **Expected Output:** `INFO: Uvicorn running on http://0.0.0.0:8000`
+
+### 2. Start the Frontend
+
+Open Terminal 2:
+
+```bash
+# Navigate to the frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
+> **Expected Output:** `VITE ready at http://localhost:8080`
 
-**Edit a file directly in GitHub**
+### 3. Open the App
+Navigate your browser to **http://localhost:8080**.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## 💡 How to Use
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. **Setup API Key:** Click the ⚙️ Settings icon in the sidebar and insert your Groq API Key if you haven't set it in `.env`.
+2. **Upload Context:** Click the 📎 paperclip icon to upload any project requirements or design specs.
+3. **Generate PRP:** 
+   - Click the ✨ **"Generate PRP"** button.
+   - Select your preferred framework from the dropdown.
+   - Describe what you want to build and hit Enter.
+   - The AI will evaluate your chat history and uploaded context to generate a strictly formatted PRP.
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## 🐛 Troubleshooting
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+| Error | Solution |
+|-------|----------|
+| **App Not Loading / Blank Screen** | Open browser console (F12) and run: `localStorage.clear(); location.reload();` |
+| **net::ERR_CONNECTION_REFUSED** | Backend isn't running. Ensure Terminal 1 shows Uvicorn running. |
+| **Groq API Key Not Configured** | Provide your key in the App Settings (⚙️) or in `backend/.env`. |
+| **ModuleNotFoundError (Python)** | Ensure you have activated your `.venv` and run `pip install -r requirements.txt`. |
 
-## How can I deploy this project?
+---
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## 📝 License
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+This project is licensed under the MIT License.

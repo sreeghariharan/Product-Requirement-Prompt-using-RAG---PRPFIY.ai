@@ -109,7 +109,7 @@
 
   .glow-primary {
     box-shadow: 0 0 20px hsl(var(--glow-primary) / 0.3),
-                0 0 40px hsl(var(--glow-primary) / 0.1);
+      0 0 40px hsl(var(--glow-primary) / 0.1);
   }
 
   .glow-primary-subtle {
@@ -121,9 +121,12 @@
   }
 
   @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.5;
     }
@@ -142,6 +145,7 @@
       opacity: 0;
       transform: translateY(10px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -164,5 +168,19 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: hsl(var(--muted));
     border-radius: 3px;
+  }
+
+  /* Fix logo white background - blend with dark theme */
+  .logo-blend {
+    background: transparent;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .logo-blend img {
+    filter: drop-shadow(0 0 8px hsl(217 91% 60% / 0.4));
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, hsl(217 91% 60% / 0.1), hsl(0 0% 7%));
   }
 }

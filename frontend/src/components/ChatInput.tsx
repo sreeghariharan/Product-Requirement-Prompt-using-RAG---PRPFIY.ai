@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Paperclip, Sparkles, X, FileText, Thermometer } from "lucide-react";
+import { Send, Paperclip, Sparkles, X, FileText, Thermometer, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -31,37 +31,38 @@ const FRAMEWORKS = [
 ];
 
 interface ChatInputProps {
-  onSend: (message: string, files: File[], framework: string) => void;
+  onSend: (message: string, files: File[], framework: string, mode: string) => void;
   onFileUpload: (files: File[]) => void;
   temperature: number;
   onTemperatureChange: (temp: number) => void;
   isLoading?: boolean;
 }
 
-export const ChatInput = ({ 
-  onSend, 
-  onFileUpload, 
-  temperature, 
-  onTemperatureChange, 
-  isLoading 
+export const ChatInput = ({
+  onSend,
+  onFileUpload,
+  temperature,
+  onTemperatureChange,
+  isLoading,
 }: ChatInputProps) => {
   const [message, setMessage] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [framework, setFramework] = useState("RTCFR");
+  const [prpMode, setPrpMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
     if (message.trim() || files.length > 0) {
-      onSend(message, files, framework);
+      onSend(message, files, framework, prpMode ? "prp" : "chat");
       setMessage("");
       setFiles([]);
+      // Don't reset PRP mode — let the user toggle it off manually
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     setFiles((prev) => [...prev, ...selectedFiles]);
-    onFileUpload(selectedFiles);
   };
 
   const removeFile = (index: number) => {
@@ -79,24 +80,50 @@ export const ChatInput = ({
     <div className="border-t border-border bg-background/50 backdrop-blur-lg p-4">
       {/* Toolbar */}
       <div className="flex items-center gap-3 mb-3">
-        <Select value={framework} onValueChange={setFramework}>
-          <SelectTrigger className="w-40 bg-secondary border-0 text-foreground">
-            <SelectValue placeholder="Framework" />
-          </SelectTrigger>
-          <SelectContent className="bg-card border-border">
-            {FRAMEWORKS.map((fw) => (
-              <SelectItem
-                key={fw.value}
-                value={fw.value}
-                className="text-foreground hover:bg-secondary"
-              >
-                <div className="flex flex-col">
-                  <span>{fw.label}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* PRP Mode Toggle */}
+        <Button
+          variant={prpMode ? "default" : "outline"}
+          size="sm"
+          onClick={() => setPrpMode(!prpMode)}
+          className={cn(
+            "transition-all duration-200",
+            prpMode
+              ? "bg-primary text-primary-foreground glow-primary-subtle"
+              : "border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
+          )}
+        >
+          <Wand2 className="w-4 h-4 mr-1.5" />
+          {prpMode ? "PRP Mode" : "Generate PRP"}
+        </Button>
+
+        {/* Framework Selector — only shown in PRP mode */}
+        <AnimatePresence>
+          {prpMode && (
+            <motion.div
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: "auto" }}
+              exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Select value={framework} onValueChange={setFramework}>
+                <SelectTrigger className="w-auto min-w-[100px] bg-secondary border-0 text-foreground">
+                  <SelectValue placeholder="Framework" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {FRAMEWORKS.map((fw) => (
+                    <SelectItem
+                      key={fw.value}
+                      value={fw.value}
+                      className="text-foreground hover:bg-secondary"
+                    >
+                      <span className="font-medium pr-2">{fw.label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Temperature Control */}
         <Popover>
@@ -132,17 +159,6 @@ export const ChatInput = ({
         </Popover>
 
         <div className="flex-1" />
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSubmit}
-          disabled={isLoading || (!message.trim() && files.length === 0)}
-          className="border-primary/30 text-primary hover:bg-primary/10"
-        >
-          <Sparkles className="w-4 h-4 mr-1.5" />
-          Generate PRP
-        </Button>
       </div>
 
       {/* File attachments */}
@@ -186,7 +202,7 @@ export const ChatInput = ({
           onChange={handleFileChange}
           className="hidden"
         />
-        
+
         <Button
           variant="ghost"
           size="icon"
@@ -201,7 +217,11 @@ export const ChatInput = ({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe your product or ask about requirements..."
+            placeholder={
+              prpMode
+                ? "Describe your product requirements..."
+                : "Ask anything or describe your project..."
+            }
             rows={1}
             className={cn(
               "min-h-[52px] max-h-[200px] resize-none",
@@ -224,12 +244,12 @@ export const ChatInput = ({
             !isLoading && (message.trim() || files.length > 0) && "glow-primary-subtle animate-pulse-glow"
           )}
         >
-          <Send className="w-5 h-5" />
+          {prpMode ? <Sparkles className="w-5 h-5" /> : <Send className="w-5 h-5" />}
         </Button>
       </div>
 
       <p className="text-xs text-muted-foreground text-center mt-3">
-        Powered by Ollama Llama3 • Running locally on your machine
+        Prpfiy.ai • {prpMode ? "PRP Mode — " + framework : "Chat Mode"}
       </p>
     </div>
   );

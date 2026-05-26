@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { X, User, Mail, Phone, Globe, Save } from "lucide-react";
+import { X, User, Mail, Phone, Globe, Save, Key, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +17,10 @@ interface UserSettings {
   email: string;
   phone: string;
   website: string;
-  ollamaUrl: string;
+  groqApiKey: string;
 }
+
+const API_URL = "http://localhost:8000";
 
 export const Settings = ({ isOpen, onClose }: SettingsProps) => {
   const [settings, setSettings] = useState<UserSettings>(() => {
@@ -26,21 +28,51 @@ export const Settings = ({ isOpen, onClose }: SettingsProps) => {
     return saved
       ? JSON.parse(saved)
       : {
-          name: "",
-          email: "",
-          phone: "",
-          website: "",
-          ollamaUrl: "http://localhost:11434",
-        };
+        name: "",
+        email: "",
+        phone: "",
+        website: "",
+        groqApiKey: "",
+      };
   });
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
-    localStorage.setItem("prpfiy-settings", JSON.stringify(settings));
-    toast({
-      title: "Settings Saved",
-      description: "Your settings have been saved successfully.",
-    });
-    onClose();
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Save to localStorage
+      localStorage.setItem("prpfiy-settings", JSON.stringify(settings));
+
+      // Send API key to backend if provided
+      if (settings.groqApiKey) {
+        const response = await fetch(`${API_URL}/api-key`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: settings.groqApiKey }),
+        });
+        if (!response.ok) {
+          throw new Error("Failed to save API key to backend");
+        }
+      }
+
+      toast({
+        title: "Settings Saved",
+        description: "Your settings have been saved successfully.",
+      });
+      onClose();
+    } catch (error) {
+      console.error("Save error:", error);
+      // Still save locally even if backend call fails
+      localStorage.setItem("prpfiy-settings", JSON.stringify(settings));
+      toast({
+        title: "Settings Saved Locally",
+        description: "Settings saved locally. Backend may not be running for API key sync.",
+      });
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -68,6 +100,37 @@ export const Settings = ({ isOpen, onClose }: SettingsProps) => {
         </div>
 
         <div className="space-y-4">
+          {/* Groq API Key — top priority */}
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 space-y-2">
+            <Label htmlFor="groqApiKey" className="text-foreground flex items-center gap-2 font-medium">
+              <Key className="w-4 h-4 text-primary" />
+              Groq API Key
+            </Label>
+            <div className="relative">
+              <Input
+                id="groqApiKey"
+                type={showApiKey ? "text" : "password"}
+                value={settings.groqApiKey}
+                onChange={(e) => setSettings({ ...settings, groqApiKey: e.target.value })}
+                placeholder="gsk_..."
+                className="bg-secondary border-0 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Get your free API key at{" "}
+              <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                console.groq.com
+              </a>
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name" className="text-foreground flex items-center gap-2">
               <User className="w-4 h-4" />
@@ -124,33 +187,15 @@ export const Settings = ({ isOpen, onClose }: SettingsProps) => {
               className="bg-secondary border-0"
             />
           </div>
-
-          <div className="pt-4 border-t border-border">
-            <div className="space-y-2">
-              <Label htmlFor="ollamaUrl" className="text-foreground">
-                Ollama Server URL
-              </Label>
-              <Input
-                id="ollamaUrl"
-                value={settings.ollamaUrl}
-                onChange={(e) => setSettings({ ...settings, ollamaUrl: e.target.value })}
-                placeholder="http://localhost:11434"
-                className="bg-secondary border-0"
-              />
-              <p className="text-xs text-muted-foreground">
-                Make sure Ollama is running with llama3 model installed
-              </p>
-            </div>
-          </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-primary text-primary-foreground">
+          <Button onClick={handleSave} disabled={isSaving} className="bg-primary text-primary-foreground">
             <Save className="w-4 h-4 mr-2" />
-            Save Settings
+            {isSaving ? "Saving..." : "Save Settings"}
           </Button>
         </div>
       </motion.div>

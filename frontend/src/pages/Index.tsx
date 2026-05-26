@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatHeader } from "@/components/ChatHeader";
@@ -6,14 +7,16 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { Settings } from "@/components/Settings";
+import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { toast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
-  timestamp: Date;
+  timestamp: string; // ISO string for safe serialization
   framework?: string;
+  mode?: "chat" | "prp";
   attachments?: { name: string; type: string }[];
   isStreaming?: boolean;
 }
@@ -34,13 +37,16 @@ const Index = () => {
     return saved ? JSON.parse(saved) : [];
   });
   const [activeSpaceId, setActiveSpaceId] = useState<string>(() => {
-    return spaces.length > 0 ? spaces[0].id : "";
+    const saved = localStorage.getItem("prpfiy-spaces");
+    const savedSpaces: Space[] = saved ? JSON.parse(saved) : [];
+    return savedSpaces.length > 0 ? savedSpaces[0].id : "";
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [temperature, setTemperature] = useState(0.7);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
@@ -57,7 +63,7 @@ const Index = () => {
     if (activeSpace) {
       scrollToBottom();
     }
-  }, [activeSpace?.messages]);
+  }, [activeSpace?.messages?.length]);
 
   const handleFileUpload = async (files: File[]) => {
     if (!activeSpaceId) return;
@@ -74,22 +80,21 @@ const Index = () => {
         });
 
         if (response.ok) {
-          // Add system message about file upload
           const systemMessage: Message = {
             id: Date.now().toString(),
             role: "system",
             content: `📄 Document "${file.name}" has been processed and added to the knowledge base.`,
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
           };
 
           setSpaces((prev) =>
             prev.map((s) =>
               s.id === activeSpaceId
                 ? {
-                    ...s,
-                    messages: [...s.messages, systemMessage],
-                    documentCount: s.documentCount + 1,
-                  }
+                  ...s,
+                  messages: [...s.messages, systemMessage],
+                  documentCount: s.documentCount + 1,
+                }
                 : s
             )
           );
@@ -110,19 +115,29 @@ const Index = () => {
     }
   };
 
+  const ensureActiveSpace = (): string => {
+    if (activeSpaceId) return activeSpaceId;
+
+    // Auto-create a space on first message
+    const newSpace: Space = {
+      id: Date.now().toString(),
+      name: `Chat ${spaces.length + 1}`,
+      messageCount: 0,
+      documentCount: 0,
+      messages: [],
+    };
+    setSpaces((prev) => [...prev, newSpace]);
+    setActiveSpaceId(newSpace.id);
+    return newSpace.id;
+  };
+
   const handleSendMessage = async (
     content: string,
     files: File[],
-    framework: string
+    framework: string,
+    mode: string = "chat"
   ) => {
-    if (!activeSpaceId) {
-      toast({
-        title: "No Space Selected",
-        description: "Please create a space first.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const spaceId = ensureActiveSpace();
 
     // Handle file uploads first
     if (files.length > 0) {
@@ -135,19 +150,32 @@ const Index = () => {
       id: Date.now().toString(),
       role: "user",
       content,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
+      mode: mode as "chat" | "prp",
       attachments: files.map((f) => ({ name: f.name, type: f.type })),
     };
+
+    // Get current messages for history
+    const currentSpace = spaces.find((s) => s.id === spaceId);
+    const currentMessages = currentSpace?.messages || [];
+
+    // Build conversation history for the backend
+    const history = currentMessages
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
 
     // Update space with user message
     setSpaces((prev) =>
       prev.map((s) =>
-        s.id === activeSpaceId
+        s.id === spaceId
           ? {
-              ...s,
-              messages: [...s.messages, userMessage],
-              messageCount: s.messageCount + 1,
-            }
+            ...s,
+            messages: [...s.messages, userMessage],
+            messageCount: s.messageCount + 1,
+          }
           : s
       )
     );
@@ -160,13 +188,18 @@ const Index = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: content,
+          mode,
           framework,
-          space_id: activeSpaceId,
+          space_id: spaceId,
           temperature,
+          history,
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to get response");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to get response");
+      }
 
       const data = await response.json();
 
@@ -174,19 +207,20 @@ const Index = () => {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: data.response,
-        timestamp: new Date(),
-        framework,
+        timestamp: new Date().toISOString(),
+        framework: mode === "prp" ? framework : undefined,
+        mode: data.mode || mode,
         isStreaming: true,
       };
 
       setSpaces((prev) =>
         prev.map((s) =>
-          s.id === activeSpaceId
+          s.id === spaceId
             ? {
-                ...s,
-                messages: [...s.messages, assistantMessage],
-                messageCount: s.messageCount + 1,
-              }
+              ...s,
+              messages: [...s.messages, assistantMessage],
+              messageCount: s.messageCount + 1,
+            }
             : s
         )
       );
@@ -195,22 +229,25 @@ const Index = () => {
       setTimeout(() => {
         setSpaces((prev) =>
           prev.map((s) =>
-            s.id === activeSpaceId
+            s.id === spaceId
               ? {
-                  ...s,
-                  messages: s.messages.map((m) =>
-                    m.id === assistantMessage.id ? { ...m, isStreaming: false } : m
-                  ),
-                }
+                ...s,
+                messages: s.messages.map((m) =>
+                  m.id === assistantMessage.id ? { ...m, isStreaming: false } : m
+                ),
+              }
               : s
           )
         );
-      }, data.response.length * 15 + 100);
-    } catch (error) {
+      }, Math.min(data.response.length * 10, 3000) + 100);
+    } catch (error: unknown) {
       console.error("Chat error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast({
-        title: "Connection Error",
-        description: "Could not connect to the backend. Make sure it's running on http://localhost:8000",
+        title: "Error",
+        description: errorMessage.includes("API key")
+          ? "Please configure your Groq API key in Settings."
+          : `Could not get a response. ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
@@ -221,7 +258,7 @@ const Index = () => {
   const handleCreateSpace = () => {
     const newSpace: Space = {
       id: Date.now().toString(),
-      name: `Space ${spaces.length + 1}`,
+      name: `Chat ${spaces.length + 1}`,
       messageCount: 0,
       documentCount: 0,
       messages: [],
@@ -229,7 +266,7 @@ const Index = () => {
     setSpaces((prev) => [...prev, newSpace]);
     setActiveSpaceId(newSpace.id);
     toast({
-      title: "Space Created",
+      title: "Chat Created",
       description: `"${newSpace.name}" has been created.`,
     });
   };
@@ -241,9 +278,20 @@ const Index = () => {
       setActiveSpaceId(remaining.length > 0 ? remaining[0].id : "");
     }
     toast({
-      title: "Space Deleted",
-      description: "The space has been removed.",
+      title: "Chat Deleted",
+      description: "The chat has been removed.",
     });
+  };
+
+  const handleRenameSpace = (spaceId: string, newName: string) => {
+    if (!newName.trim()) return;
+    setSpaces((prev) =>
+      prev.map((s) => (s.id === spaceId ? { ...s, name: newName } : s))
+    );
+  };
+
+  const handleGoHome = () => {
+    navigate("/");
   };
 
   const handleClearKB = () => {
@@ -255,7 +303,7 @@ const Index = () => {
     );
     toast({
       title: "Knowledge Base Cleared",
-      description: "All documents have been removed from this space.",
+      description: "All documents have been removed from this chat.",
     });
   };
 
@@ -267,16 +315,81 @@ const Index = () => {
     });
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    if (!activeSpaceId) {
-      // Create a space first
-      handleCreateSpace();
-      setTimeout(() => {
-        handleSendMessage(suggestion, [], "RTCFR");
-      }, 100);
-    } else {
-      handleSendMessage(suggestion, [], "RTCFR");
+  const handleForkChat = async (targetSpaceId: string) => {
+    if (!activeSpaceId || !activeSpace) return;
+
+    setIsLoading(true);
+    let newSpaceId = targetSpaceId;
+    let isNewSpace = false;
+
+    if (targetSpaceId === "new") {
+      newSpaceId = Date.now().toString();
+      isNewSpace = true;
     }
+
+    try {
+      // If there are documents, fork the knowledge base in backend
+      if (activeSpace.documentCount > 0) {
+        const response = await fetch(`${API_URL}/fork-knowledge-base`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source_space_id: activeSpaceId,
+            new_space_id: newSpaceId,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to connect knowledge base context");
+        }
+      }
+
+      if (isNewSpace) {
+        // Create new space in frontend with exact same messages
+        const newSpace: Space = {
+          id: newSpaceId,
+          name: `${activeSpace.name} (Connected)`,
+          messageCount: activeSpace.messageCount,
+          documentCount: activeSpace.documentCount,
+          messages: [...activeSpace.messages],
+        };
+        setSpaces((prev) => [...prev, newSpace]);
+      } else {
+        // Update document count for existing space
+        setSpaces((prev) => prev.map(s =>
+          s.id === newSpaceId ? {
+            ...s,
+            documentCount: s.documentCount + activeSpace.documentCount,
+            messages: [...s.messages, {
+              id: Date.now().toString(),
+              role: "system",
+              content: `🔗 Linked context from "${activeSpace.name}".`,
+              timestamp: new Date().toISOString()
+            }]
+          } : s
+        ));
+      }
+
+      setActiveSpaceId(newSpaceId);
+
+      toast({
+        title: "Context Connected",
+        description: isNewSpace ? "Context copied to a new chat." : "Context successfully merged into chat.",
+      });
+    } catch (error) {
+      console.error("Fork error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to connect the chat context.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    handleSendMessage(suggestion, [], "RTCFR", "chat");
   };
 
   return (
@@ -287,6 +400,8 @@ const Index = () => {
         onSelectSpace={setActiveSpaceId}
         onCreateSpace={handleCreateSpace}
         onDeleteSpace={handleDeleteSpace}
+        onRenameSpace={handleRenameSpace}
+        onGoHome={handleGoHome}
         onOpenSettings={() => setSettingsOpen(true)}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -298,8 +413,11 @@ const Index = () => {
             <ChatHeader
               spaceName={activeSpace.name}
               documentCount={activeSpace.documentCount}
+              spaces={spaces.map(s => ({ id: s.id, name: s.name }))}
+              activeSpaceId={activeSpaceId}
               onClearKB={handleClearKB}
               onShare={handleShare}
+              onForkChat={handleForkChat}
             />
 
             <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -311,6 +429,9 @@ const Index = () => {
                     {activeSpace.messages.map((message) => (
                       <ChatMessage key={message.id} {...message} />
                     ))}
+                    {isLoading && (
+                      <LoadingIndicator />
+                    )}
                   </AnimatePresence>
                   <div ref={messagesEndRef} />
                 </div>
